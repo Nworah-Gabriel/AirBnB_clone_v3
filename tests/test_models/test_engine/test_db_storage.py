@@ -5,7 +5,6 @@ Contains the TestDBStorageDocs and TestDBStorage classes
 
 from datetime import datetime
 import inspect
-import models
 from models.engine import db_storage
 from models.amenity import Amenity
 from models.base_model import BaseModel
@@ -14,18 +13,21 @@ from models.place import Place
 from models.review import Review
 from models.state import State
 from models.user import User
+from models import storage
 import json
 import os
 import pep8
 import unittest
-from models import storage
 DBStorage = db_storage.DBStorage
 classes = {"Amenity": Amenity, "City": City, "Place": Place,
            "Review": Review, "State": State, "User": User}
+STORAGE = os.environ.get('HBNB_TYPE_STORAGE')
 
 
+@unittest.skipIf(STORAGE != 'db', 'skip if environ not db')
 class TestDBStorageDocs(unittest.TestCase):
     """Tests to check the documentation and style of DBStorage class"""
+
     @classmethod
     def setUpClass(cls):
         """Set up for the doc tests"""
@@ -69,42 +71,27 @@ test_db_storage.py'])
                             "{:s} method needs a docstring".format(func[0]))
 
 
-class TestFileStorage(unittest.TestCase):
-    """Test the FileStorage class"""
-    @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
-    def test_all_returns_dict(self):
-        """Test that all returns a dictionaty"""
-        self.assertIs(type(models.storage.all()), dict)
-
-    @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
-    def test_all_no_class(self):
-        """Test that all returns all rows when no class is passed"""
-
-    @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
-    def test_new(self):
-        """test that new adds an object to the database"""
-
-    @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
-    def test_save(self):
-        """Test that save properly saves objects to file.json"""
-
+@unittest.skipIf(STORAGE != 'db', 'skip if environ not db')
+class TestDBStorage(unittest.TestCase):
+    """Tests to check DBStorage class"""
     def test_get_db(self):
-        """ Tests method for obtaining an instance db storage"""
-        dic = {"name": "Cundinamarca"}
-        instance = State(**dic)
-        storage.new(instance)
-        storage.save()
-        get_instance = storage.get(State, instance.id)
-        self.assertEqual(get_instance, instance)
+        """Test that get returns the object based on the class
+        name and its ID, or None if not found"""
+        obj = State(name="X")
+        obj.save()
+        self.assertIs(obj, storage.get("State", obj.id))
+        self.assertIs(None, storage.get("State", "bad id"))
 
-    def test_count(self):
-        """ Tests count method db storage """
-        dic = {"name": "Vecindad"}
-        state = State(**dic)
-        storage.new(state)
-        dic = {"name": "Mexico", "state_id": state.id}
-        city = City(**dic)
-        storage.new(city)
-        storage.save()
-        c = storage.count()
-        self.assertEqual(len(storage.all()), c)
+    def test_count_db(self):
+        """Test that count returns the number of objects in
+        storage matching the given class name. If no name is
+        passed, returns the count of all objects in storage."""
+        count_state = storage.count("State")
+        count_all = storage.count()
+        obj = State(name="X")
+        obj.save()
+        obj2 = User(email="Y", password="Z")
+        obj2.save()
+        self.assertEqual(storage.count("bad state"), 0)
+        self.assertEqual(storage.count("State"), count_state + 1)
+        self.assertEqual(storage.count(), count_all + 2)

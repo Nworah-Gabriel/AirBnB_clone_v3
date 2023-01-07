@@ -21,6 +21,7 @@ import unittest
 FileStorage = file_storage.FileStorage
 classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
            "Place": Place, "Review": Review, "State": State, "User": User}
+STORAGE = os.environ.get('HBNB_TYPE_STORAGE')
 
 
 class TestFileStorageDocs(unittest.TestCase):
@@ -68,9 +69,9 @@ test_file_storage.py'])
                             "{:s} method needs a docstring".format(func[0]))
 
 
+@unittest.skipIf(STORAGE == 'db', "skip if environ is db")
 class TestFileStorage(unittest.TestCase):
     """Test the FileStorage class"""
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
     def test_all_returns_dict(self):
         """Test that all returns the FileStorage.__objects attr"""
         storage = FileStorage()
@@ -78,7 +79,6 @@ class TestFileStorage(unittest.TestCase):
         self.assertEqual(type(new_dict), dict)
         self.assertIs(new_dict, storage._FileStorage__objects)
 
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
     def test_new(self):
         """test that new adds an object to the FileStorage.__objects attr"""
         storage = FileStorage()
@@ -94,7 +94,6 @@ class TestFileStorage(unittest.TestCase):
                 self.assertEqual(test_dict, storage._FileStorage__objects)
         FileStorage._FileStorage__objects = save
 
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
     def test_save(self):
         """Test that save properly saves objects to file.json"""
         storage = FileStorage()
@@ -114,28 +113,26 @@ class TestFileStorage(unittest.TestCase):
             js = f.read()
         self.assertEqual(json.loads(string), json.loads(js))
 
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
-    def test_get(self):
-        """ Tests method for obtaining an instance file storage"""
+    def test_get_fs(self):
+        """Test that get returns the object based on the class
+        name and its ID, or None if not found"""
         storage = FileStorage()
-        dic = {"name": "Vecindad"}
-        instance = State(**dic)
-        storage.new(instance)
-        storage.save()
-        storage = FileStorage()
-        get_instance = storage.get(State, instance.id)
-        self.assertEqual(get_instance, instance)
+        obj = State(name="X")
+        obj.save()
+        self.assertIs(obj, storage.get("State", obj.id))
+        self.assertIs(None, storage.get("State", "bad id"))
 
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
-    def test_count(self):
-        """ Tests count method file storage """
+    def test_count_db(self):
+        """Test that count returns the number of objects in
+        storage matching the given class name. If no name is
+        passed, returns the count of all objects in storage."""
         storage = FileStorage()
-        dic = {"name": "Vecindad"}
-        state = State(**dic)
-        storage.new(state)
-        dic = {"name": "Mexico"}
-        city = City(**dic)
-        storage.new(city)
-        storage.save()
-        c = storage.count()
-        self.assertEqual(len(storage.all()), c)
+        count_state = storage.count("State")
+        count_all = storage.count()
+        obj = State(name="X")
+        obj.save()
+        obj2 = User(email="Y", password="Z")
+        obj2.save()
+        self.assertEqual(storage.count("bad state"), 0)
+        self.assertEqual(storage.count("State"), count_state + 1)
+        self.assertEqual(storage.count(), count_all + 2)
